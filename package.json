@@ -1,6 +1,6 @@
 {
   "name": "google-news-url-decoder",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A Node.js library to decode Google News URLs to their original source URLs.",
   "main": "index.js",
   "scripts": {
@@ -16,7 +16,7 @@
   "author": "An Ho <an.ho1991@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "node-html-parser": "^2.3.2"
+    "node-html-parser": "^7.0.1"
   },
   "repository": {
     "type": "git",

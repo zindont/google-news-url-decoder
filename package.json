@@ -1,0 +1,32 @@
+{
+  "name": "@zindont/google-news-url-decoder",
+  "version": "1.0.0",
+  "description": "A Node.js library to decode Google News URLs to their original source URLs.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js \"https://news.google.com/rss/articles/CBMivAFBVV95cUxQSFVPU0diUE1udVVDWWVWdjYxVTNPYWk0OXFHRUs1bUxQaS1xSmg3NGhIOGRvTEFXZ1RwUjVwVE56emFTd0k5Tl9DaDVXNVZudWMwVURyVktrY1VqN1J3eWlTSDFTci1teVAwdF8xc25jTHNOdXVPQUZxZ2pJTEJpdmtXbjRwdTNxTUtfVnNZUmZ5ZDI1Wi0tUWprRWRrSGVfNUo4TlFtS2NmYzBHSlVtVHJWcGNZUHZWRUZXaA?oc=5\""
+  },
+  "keywords": [
+    "google-news",
+    "decoder",
+    "url",
+    "scraper",
+    "news"
+  ],
+  "author": "An Ho <an.ho1991@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "node-html-parser": "^2.3.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/zindont/google-news-url-decoder.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zindont/google-news-url-decoder/issues"
+  },
+  "homepage": "https://github.com/zindont/google-news-url-decoder#readme",
+  "publishConfig": {
+    "access": "public"
+  }
+}

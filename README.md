@@ -5,7 +5,7 @@ A lightweight Node.js library to decode Google News URLs into their original sou
 ## Installation
 
 ```bash
-npm install @zindont/google-news-url-decoder
+npm install google-news-url-decoder
 ```
 
 ## Usage
@@ -13,7 +13,7 @@ npm install @zindont/google-news-url-decoder
 ### As a Library
 
 ```javascript
-const { GoogleDecoder } = require('@zindont/google-news-url-decoder');
+const { GoogleDecoder } = require('google-news-url-decoder');
 
 const decoder = new GoogleDecoder();
 const googleNewsUrl = 'https://news.google.com/rss/articles/...';
@@ -34,7 +34,7 @@ decoder.decode(googleNewsUrl)
 If you have the package installed locally:
 
 ```bash
-node node_modules/@zindont/google-news-url-decoder/index.js "YOUR_GOOGLE_NEWS_URL"
+node node_modules/google-news-url-decoder/index.js "YOUR_GOOGLE_NEWS_URL"
 ```
 
 ## How it works

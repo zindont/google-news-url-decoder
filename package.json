@@ -1,5 +1,5 @@
 {
-  "name": "@zindont/google-news-url-decoder",
+  "name": "google-news-url-decoder",
   "version": "1.0.0",
   "description": "A Node.js library to decode Google News URLs to their original source URLs.",
   "main": "index.js",

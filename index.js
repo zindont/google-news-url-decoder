@@ -39,7 +39,18 @@ class GoogleDecoder {
             const url = `https://news.google.com/rss/articles/${base64Str}`;
             const response = await fetch(url, {
                 headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36'
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Cache-Control': 'max-age=0',
+                    'Sec-Ch-Ua': '"Google Chrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"',
+                    'Sec-Ch-Ua-Mobile': '?0',
+                    'Sec-Ch-Ua-Platform': '"Windows"',
+                    'Sec-Fetch-Dest': 'document',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-Site': 'none',
+                    'Sec-Fetch-User': '?1',
+                    'Upgrade-Insecure-Requests': '1'
                 }
             });
 
@@ -94,6 +105,15 @@ class GoogleDecoder {
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+                    "Accept": "*/*",
+                    "Origin": "https://news.google.com",
+                    "Referer": "https://news.google.com/",
+                    "Sec-Ch-Ua": '"Google Chrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"',
+                    "Sec-Ch-Ua-Mobile": "?0",
+                    "Sec-Ch-Ua-Platform": '"Windows"',
+                    "Sec-Fetch-Dest": "empty",
+                    "Sec-Fetch-Mode": "cors",
+                    "Sec-Fetch-Site": "same-origin",
                 },
                 body: reqData
             });
@@ -131,6 +151,107 @@ class GoogleDecoder {
     }
 
     /**
+     * Decodes multiple Google News article URLs in a single batched request.
+     * @param {string[]} sourceUrls 
+     * @returns {Promise<object[]>}
+     */
+    async decodeBatch(sourceUrls) {
+        try {
+            const results = [];
+            for (const sourceUrl of sourceUrls) {
+                const base64Response = this.getBase64Str(sourceUrl);
+                if (!base64Response.status) {
+                    results.push({ status: false, source_url: sourceUrl, message: base64Response.message });
+                    continue;
+                }
+
+                // Add a small random delay between parameter fetches to look more human
+                await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 500) + 200));
+
+                const paramsResponse = await this.getDecodingParams(base64Response.base64_str);
+                if (!paramsResponse.status) {
+                    results.push({ status: false, source_url: sourceUrl, message: paramsResponse.message });
+                    continue;
+                }
+                results.push({
+                    status: true,
+                    source_url: sourceUrl,
+                    signature: paramsResponse.signature,
+                    timestamp: paramsResponse.timestamp,
+                    base64_str: paramsResponse.base64_str
+                });
+            }
+
+            const successfulRequests = results.filter(r => r.status);
+            if (successfulRequests.length === 0) {
+                return results;
+            }
+
+            const url = "https://news.google.com/_/DotsSplashUi/data/batchexecute";
+            const payloads = successfulRequests.map(req => ([
+                "Fbv4je",
+                `["garturlreq",[["X","X",["X","X"],null,null,1,1,"US:en",null,1,null,null,null,null,null,0,1],"X","X",1,[1,1,1],1,1,null,0,0,null,0],"${req.base64_str}",${req.timestamp},"${req.signature}"]`,
+            ]));
+
+            const reqData = `f.req=${encodeURIComponent(JSON.stringify([payloads]))}`;
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+                    "Accept": "*/*",
+                    "Origin": "https://news.google.com",
+                    "Referer": "https://news.google.com/",
+                    "Sec-Ch-Ua": '"Google Chrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"',
+                    "Sec-Ch-Ua-Mobile": "?0",
+                    "Sec-Ch-Ua-Platform": '"Windows"',
+                    "Sec-Fetch-Dest": "empty",
+                    "Sec-Fetch-Mode": "cors",
+                    "Sec-Fetch-Site": "same-origin",
+                },
+                body: reqData
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const text = await response.text();
+            const splitParts = text.split("\n\n");
+            if (splitParts.length < 2) {
+                throw new Error("Unexpected response format from batchexecute");
+            }
+
+            const jsonStr = splitParts[1];
+            const parsedData = JSON.parse(jsonStr);
+
+            const batchResponses = parsedData.filter(d => d[0] === "w779db");
+
+            let successIdx = 0;
+            return results.map(res => {
+                if (!res.status) return res;
+
+                try {
+                    const row = batchResponses[successIdx++];
+                    const innerDataStr = row[2];
+                    const innerData = JSON.parse(innerDataStr);
+                    const decodedUrl = innerData[1];
+                    return { status: true, source_url: res.source_url, decoded_url: decodedUrl };
+                } catch (e) {
+                    return { status: false, source_url: res.source_url, message: `Parsing error: ${e.message}` };
+                }
+            });
+
+        } catch (e) {
+            return [{
+                status: false,
+                message: `Error in decodeBatch: ${e.message}`,
+            }];
+        }
+    }
+
+    /**
      * Main method to decode a Google News article URL.
      * @param {string} sourceUrl 
      * @returns {Promise<object>}
@@ -163,23 +284,37 @@ class GoogleDecoder {
 if (require.main === module) {
     const args = process.argv.slice(2);
     if (args.length === 0) {
-        console.log("Usage: node index.js <google-news-url>");
+        console.log("Usage: node index.js <google-news-url1> [google-news-url2] ...");
         process.exit(1);
     }
 
-    const url = args[0];
     const decoder = new GoogleDecoder();
-    decoder.decode(url).then(result => {
-        if (result.status) {
-            console.log(result.decoded_url);
-        } else {
-            console.error("Error:", result.message);
+    if (args.length === 1) {
+        decoder.decode(args[0]).then(result => {
+            if (result.status) {
+                console.log(result.decoded_url);
+            } else {
+                console.error("Error:", result.message);
+                process.exit(1);
+            }
+        }).catch(err => {
+            console.error("Fatal Error:", err);
             process.exit(1);
-        }
-    }).catch(err => {
-        console.error("Fatal Error:", err);
-        process.exit(1);
-    });
+        });
+    } else {
+        decoder.decodeBatch(args).then(results => {
+            results.forEach((result, i) => {
+                if (result.status) {
+                    console.log(`[${i}] ${result.decoded_url}`);
+                } else {
+                    console.error(`[${i}] Error: ${result.message} (${result.source_url})`);
+                }
+            });
+        }).catch(err => {
+            console.error("Fatal Error:", err);
+            process.exit(1);
+        });
+    }
 }
 
 module.exports = { GoogleDecoder };

@@ -55,6 +55,8 @@ class GoogleDecoder {
             });
 
             if (!response.ok) {
+                // Cancel the response body to prevent stalled HTTP warning in Cloudflare Workers
+                await response.body?.cancel();
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
@@ -119,6 +121,8 @@ class GoogleDecoder {
             });
 
             if (!response.ok) {
+                // Cancel the response body to prevent stalled HTTP warning in Cloudflare Workers
+                await response.body?.cancel();
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
@@ -214,6 +218,8 @@ class GoogleDecoder {
             });
 
             if (!response.ok) {
+                // Cancel the response body to prevent stalled HTTP warning in Cloudflare Workers
+                await response.body?.cancel();
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 

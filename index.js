@@ -34,10 +34,11 @@ class GoogleDecoder {
      * @returns {Promise<object>}
      */
     async getDecodingParams(base64Str) {
+        let response;
         try {
             // We use the RSS URL format as it's often more reliable for scraping
             const url = `https://news.google.com/rss/articles/${base64Str}`;
-            const response = await fetch(url, {
+            response = await fetch(url, {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -78,6 +79,9 @@ class GoogleDecoder {
                 base64_str: base64Str,
             };
         } catch (e) {
+            if (response && !response.bodyUsed) {
+                try { await response.body?.cancel(); } catch (err) { }
+            }
             return {
                 status: false,
                 message: `Error in getDecodingParams: ${e.message}`,
@@ -93,6 +97,7 @@ class GoogleDecoder {
      * @returns {Promise<object>}
      */
     async decodeUrl(signature, timestamp, base64Str) {
+        let response;
         try {
             const url = "https://news.google.com/_/DotsSplashUi/data/batchexecute";
             const payload = [
@@ -102,7 +107,7 @@ class GoogleDecoder {
 
             const reqData = `f.req=${encodeURIComponent(JSON.stringify([[payload]]))}`;
 
-            const response = await fetch(url, {
+            response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
@@ -147,6 +152,9 @@ class GoogleDecoder {
 
             return { status: true, decoded_url: decodedUrl };
         } catch (e) {
+            if (response && !response.bodyUsed) {
+                try { await response.body?.cancel(); } catch (err) { }
+            }
             return {
                 status: false,
                 message: `Error in decodeUrl: ${e.message}`,
@@ -160,6 +168,7 @@ class GoogleDecoder {
      * @returns {Promise<object[]>}
      */
     async decodeBatch(sourceUrls) {
+        let response;
         try {
             const results = [];
             for (const sourceUrl of sourceUrls) {
@@ -199,7 +208,7 @@ class GoogleDecoder {
 
             const reqData = `f.req=${encodeURIComponent(JSON.stringify([payloads]))}`;
 
-            const response = await fetch(url, {
+            response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
@@ -250,6 +259,9 @@ class GoogleDecoder {
             });
 
         } catch (e) {
+            if (response && !response.bodyUsed) {
+                try { await response.body?.cancel(); } catch (err) { }
+            }
             return [{
                 status: false,
                 message: `Error in decodeBatch: ${e.message}`,

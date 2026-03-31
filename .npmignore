@@ -1,0 +1,15 @@
+# Dev & CI files
+.github/
+.git/
+.gitignore
+.DS_Store
+
+# Tests
+test.js
+
+# Logs
+npm-debug.log
+
+# Editor configs
+.vscode/
+.idea/

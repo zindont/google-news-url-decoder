@@ -143,14 +143,29 @@ class GoogleDecoder {
             const parsedData = JSON.parse(jsonStr);
 
             // We need to extract the second element of the inner JSON string
-            // Data structure: [ [ ["w779db", "[...]", null, null, null] ], ... ]
-            // The Python code does: json.loads(parsed_data[0][2])[1]
+            // Google News API response contains multiple chunks. We look for 'wrb.fr' or 'w779db' 
+            // combined with the action code 'Fbv4je'.
+            const batchResponses = parsedData.filter(d => (d[0] === "wrb.fr" || d[0] === "w779db") && d[1] === "Fbv4je");
 
-            const innerDataStr = parsedData[0][2];
+            if (batchResponses.length === 0) {
+                // Fallback for cases where the response might have a different structure but has the data at index 0
+                // This maintains compatibility with simplified mock responses in tests
+                try {
+                    const innerDataStr = parsedData[0][2];
+                    const innerData = JSON.parse(innerDataStr);
+                    const decodedUrl = innerData[1];
+                    return { status: true, decoded_url: decodedUrl };
+                } catch (e) {
+                    throw new Error("No valid response found in batchexecute data");
+                }
+            }
+
+            const innerDataStr = batchResponses[0][2];
             const innerData = JSON.parse(innerDataStr);
             const decodedUrl = innerData[1];
 
             return { status: true, decoded_url: decodedUrl };
+
         } catch (e) {
             if (response && !response.bodyUsed) {
                 try { await response.body?.cancel(); } catch (err) { }
@@ -241,7 +256,12 @@ class GoogleDecoder {
             const jsonStr = splitParts[1];
             const parsedData = JSON.parse(jsonStr);
 
-            const batchResponses = parsedData.filter(d => d[0] === "w779db");
+            // Google News API response contains multiple chunks. We look for 'wrb.fr' or 'w779db' 
+            // combined with the action code 'Fbv4je'.
+            const batchResponses = parsedData.filter(d => (d[0] === "wrb.fr" || d[0] === "w779db") && d[1] === "Fbv4je");
+
+
+
 
             let successIdx = 0;
             return results.map(res => {

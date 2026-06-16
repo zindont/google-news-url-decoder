@@ -172,7 +172,66 @@ describe('GoogleDecoder', () => {
         });
     });
 
+    describe('decodeBatch', () => {
+        let originalFetch;
+
+        beforeEach(() => {
+            originalFetch = globalThis.fetch;
+        });
+
+        afterEach(() => {
+            globalThis.fetch = originalFetch;
+        });
+
+        it('should decode multiple URLs using the current format (wrb.fr)', async () => {
+            const urls = [
+                'https://news.google.com/rss/articles/CBMi1?oc=5',
+                'https://news.google.com/rss/articles/CBMi2?oc=5'
+            ];
+
+            let callCount = 0;
+            globalThis.fetch = async (url, options) => {
+                callCount++;
+                if (options?.method === 'POST') {
+                    // batchexecute response
+                    const mockBatch = `)]}'\n\n[[ "wrb.fr", "Fbv4je", "[\\\"garturlres\\\",\\\"https://example.com/res1\\\"]" ], [ "wrb.fr", "Fbv4je", "[\\\"garturlres\\\",\\\"https://example.com/res2\\\"]" ]]`;
+                    return { ok: true, text: async () => mockBatch };
+                } else {
+                    // getDecodingParams response
+                    return {
+                        ok: true,
+                        text: async () => MOCK_HTML,
+                        bodyUsed: false,
+                        body: { cancel: async () => {} },
+                    };
+                }
+            };
+
+            const results = await decoder.decodeBatch(urls);
+            assert.strictEqual(results.length, 2);
+            assert.strictEqual(results[0].decoded_url, 'https://example.com/res1');
+            assert.strictEqual(results[1].decoded_url, 'https://example.com/res2');
+        });
+
+        it('should still support the legacy format (w779db)', async () => {
+            const urls = ['https://news.google.com/rss/articles/CBMiLegacy?oc=5'];
+
+            globalThis.fetch = async (url, options) => {
+                if (options?.method === 'POST') {
+                    const mockBatch = `)]}'\n\n[[ "w779db", "Fbv4je", "[\\\"garturlres\\\",\\\"https://example.com/legacy\\\"]" ]]`;
+                    return { ok: true, text: async () => mockBatch };
+                }
+                return { ok: true, text: async () => MOCK_HTML, bodyUsed: false, body: { cancel: async () => {} } };
+            };
+
+            const results = await decoder.decodeBatch(urls);
+            assert.strictEqual(results[0].status, true);
+            assert.strictEqual(results[0].decoded_url, 'https://example.com/legacy');
+        });
+    });
+
     describe('decode (integration with mocks)', () => {
+
         let originalFetch;
 
         beforeEach(() => {

@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-06-16
+
+### Fixed
+- Fixed `decodeBatch()` failing due to Google News API response format changes (switched from `wrb.fr` from `w779db`).
+- Improved parsing robustness by filtering for the action code `Fbv4je`.
+
+### Added
+- Comprehensive unit tests for `decodeBatch()` covering both new and legacy response formats.
+
 ## [1.2.0] - 2026-03-31
 
 ### Changed

@@ -8,7 +8,8 @@
   },
   "scripts": {
     "test": "node --test test.js",
-    "test:live": "node index.js \"https://news.google.com/rss/articles/CBMivAFBVV95cUxQSFVPU0diUE1udVVDWWVWdjYxVTNPYWk0OXFHRUs1bUxQaS1xSmg3NGhIOGRvTEFXZ1RwUjVwVE56emFTd0k5Tl9DaDVXNVZudWMwVURyVktrY1VqN1J3eWlTSDFTci1teVAwdF8xc25jTHNOdXVPQUZxZ2pJTEJpdmtXbjRwdTNxTUtfVnNZUmZ5ZDI1Wi0tUWprRWRrSGVfNUo4TlFtS2NmYzBHSlVtVHJWcGNZUHZWRUZXaA?oc=5\""
+    "test:live": "node index.js \"https://news.google.com/rss/articles/CBMivAFBVV95cUxQSFVPU0diUE1udVVDWWVWdjYxVTNPYWk0OXFHRUs1bUxQaS1xSmg3NGhIOGRvTEFXZ1RwUjVwVE56emFTd0k5Tl9DaDVXNVZudWMwVURyVktrY1VqN1J3eWlTSDFTci1teVAwdF8xc25jTHNOdXVPQUZxZ2pJTEJpdmtXbjRwdTNxTUtfVnNZUmZ5ZDI1Wi0tUWprRWRrSGVfNUo4TlFtS2NmYzBHSlVtVHJWcGNZUHZWRUZXaA?oc=5\"",
+    "test:canary": "node scripts/live-canary.js"
   },
   "keywords": [
     "google-news",

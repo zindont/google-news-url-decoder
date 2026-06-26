@@ -1,0 +1,35 @@
+name: Scheduled Canary
+
+on:
+  schedule:
+    - cron: '17 2 */3 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scheduled-canary
+  cancel-in-progress: true
+
+jobs:
+  live-decode-batch:
+    name: Live decodeBatch canary
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run live canary
+        run: npm run test:canary

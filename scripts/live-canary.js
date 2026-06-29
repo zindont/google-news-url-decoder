@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+const fs = require('fs');
 const { GoogleDecoder } = require('../index.js');
 
 const DEFAULT_FEED_URL = 'https://news.google.com/rss/search?q=technology&hl=en-US&gl=US&ceid=US:en';
@@ -9,6 +10,12 @@ const MIN_SUCCESS = parsePositiveInt(process.env.GOOGLE_NEWS_CANARY_MIN_SUCCESS,
 const REQUEST_TIMEOUT_MS = parsePositiveInt(process.env.GOOGLE_NEWS_CANARY_TIMEOUT_MS, 15000);
 
 const batchSnapshots = [];
+const canaryState = {
+    urls: [],
+    results: [],
+    successCount: 0,
+    summaryWritten: false,
+};
 
 function parsePositiveInt(value, fallback) {
     const parsed = Number.parseInt(value, 10);
@@ -161,6 +168,99 @@ function hostOf(value) {
     }
 }
 
+function compactUrl(value) {
+    try {
+        const url = new URL(value);
+        const path = url.pathname.length > 42
+            ? `${url.pathname.slice(0, 39)}...`
+            : url.pathname;
+        return `${url.hostname}${path}`;
+    } catch (e) {
+        return String(value);
+    }
+}
+
+function escapeMarkdownTableCell(value) {
+    return String(value)
+        .replace(/\r?\n/g, ' ')
+        .replace(/\|/g, '\\|');
+}
+
+function markdownLink(label, url) {
+    const safeUrl = String(url).replace(/>/g, '%3E');
+    return `[${escapeMarkdownTableCell(label)}](<${safeUrl}>)`;
+}
+
+function buildStepSummary({ urls, results, successCount, failure = null }) {
+    const passed = !failure && successCount >= MIN_SUCCESS;
+    const lines = [
+        '## Google News Decode Canary',
+        '',
+        `Canary status: **${passed ? 'Passed' : 'Failed'}**`,
+        `Result: **${successCount}/${urls.length} decoded**`,
+        `Minimum required: **${MIN_SUCCESS}/${SAMPLE_SIZE} decoded**`,
+        `Feed: ${markdownLink(compactUrl(FEED_URL), FEED_URL)}`,
+        '',
+    ];
+
+    if (failure) {
+        lines.push(`Failure: **${escapeMarkdownTableCell(failure.message)}**`, '');
+    }
+
+    if (urls.length > 0) {
+        lines.push('| # | Status | Google News URL | Original URL / Error |');
+        lines.push('|---:|---|---|---|');
+
+        urls.forEach((sourceUrl, index) => {
+            const result = results[index];
+            const status = result?.status && result.decoded_url ? 'Success' : 'Failed';
+            const sourceLink = markdownLink(compactUrl(sourceUrl), sourceUrl);
+            const output = result?.status && result.decoded_url
+                ? markdownLink(compactUrl(result.decoded_url), result.decoded_url)
+                : escapeMarkdownTableCell(result?.message || 'No result returned');
+
+            lines.push(`| ${index + 1} | ${status} | ${sourceLink} | ${output} |`);
+        });
+
+        lines.push('');
+    }
+
+    if (batchSnapshots.length > 0) {
+        lines.push('<details>');
+        lines.push('<summary>batchexecute response summary</summary>');
+        lines.push('');
+        lines.push('```json');
+        lines.push(JSON.stringify(batchSnapshots, null, 2));
+        lines.push('```');
+        lines.push('</details>');
+        lines.push('');
+    }
+
+    return `${lines.join('\n')}\n`;
+}
+
+function writeStepSummary(summary) {
+    if (!process.env.GITHUB_STEP_SUMMARY) return;
+
+    try {
+        fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
+    } catch (e) {
+        console.warn(`Could not write GitHub step summary: ${e.message}`);
+    }
+}
+
+function writeCanarySummary(failure = null) {
+    if (canaryState.summaryWritten) return;
+
+    writeStepSummary(buildStepSummary({
+        urls: canaryState.urls,
+        results: canaryState.results,
+        successCount: canaryState.successCount,
+        failure,
+    }));
+    canaryState.summaryWritten = true;
+}
+
 async function main() {
     installFetchInstrumentation();
 
@@ -188,10 +288,13 @@ async function main() {
     urls.forEach((url, index) => {
         console.log(`[source ${index}] ${url}`);
     });
+    canaryState.urls = urls;
 
     const decoder = new GoogleDecoder();
     const results = await decoder.decodeBatch(urls);
     const successCount = results.filter(result => result.status && result.decoded_url).length;
+    canaryState.results = results;
+    canaryState.successCount = successCount;
 
     results.forEach((result, index) => {
         if (result.status) {
@@ -207,6 +310,8 @@ async function main() {
         console.log(JSON.stringify(batchSnapshots, null, 2));
     }
 
+    writeCanarySummary();
+
     if (successCount < MIN_SUCCESS) {
         throw new Error(`Live canary decoded ${successCount}/${urls.length}; expected at least ${MIN_SUCCESS}`);
     }
@@ -219,6 +324,8 @@ main().catch(error => {
         console.error('batchexecute response summary at failure:');
         console.error(JSON.stringify(batchSnapshots, null, 2));
     }
+
+    writeCanarySummary(error);
 
     console.error(`Live canary failed: ${error.message}`);
     process.exitCode = 1;

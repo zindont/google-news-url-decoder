@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed `decodeBatch()` source/result mismatches caused by Google News returning multi-payload `batchexecute` rows in non-deterministic order.
 
 ### Changed
-- Canary job summaries now use links intended to open in a new browser tab.
+- Canary job summaries now clarify GitHub's link target behavior.
 
 ## [1.2.2] - 2026-06-16
 

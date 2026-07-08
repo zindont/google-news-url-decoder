@@ -198,17 +198,9 @@ function escapeMarkdownTableCell(value) {
         .replace(/\|/g, '\\|');
 }
 
-function escapeHtml(value) {
-    return String(value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-function summaryLink(label, url) {
-    return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
+function markdownLink(label, url) {
+    const safeUrl = String(url).replace(/>/g, '%3E');
+    return `[${escapeMarkdownTableCell(label)}](<${safeUrl}>)`;
 }
 
 function buildStepSummary({ urls, results, successCount, failure = null }) {
@@ -220,7 +212,9 @@ function buildStepSummary({ urls, results, successCount, failure = null }) {
         `Result: **${successCount}/${urls.length} decoded**`,
         `Minimum required: **${MIN_SUCCESS}/${SAMPLE_SIZE} decoded**`,
         `Candidate pool: **${canaryState.candidateCount} Google News URLs**`,
-        `Feed: ${summaryLink(compactUrl(FEED_URL), FEED_URL)}`,
+        `Feed: ${markdownLink(compactUrl(FEED_URL), FEED_URL)}`,
+        '',
+        'GitHub controls link target behavior in job summaries. Use Cmd-click, Ctrl-click, or middle-click to open links in a new tab.',
         '',
     ];
 
@@ -235,9 +229,9 @@ function buildStepSummary({ urls, results, successCount, failure = null }) {
         urls.forEach((sourceUrl, index) => {
             const result = results[index];
             const status = result?.status && result.decoded_url ? 'Success' : 'Failed';
-            const sourceLink = summaryLink(compactUrl(sourceUrl), sourceUrl);
+            const sourceLink = markdownLink(compactUrl(sourceUrl), sourceUrl);
             const output = result?.status && result.decoded_url
-                ? summaryLink(compactUrl(result.decoded_url), result.decoded_url)
+                ? markdownLink(compactUrl(result.decoded_url), result.decoded_url)
                 : escapeMarkdownTableCell(result?.message || 'No result returned');
 
             lines.push(`| ${index + 1} | ${status} | ${sourceLink} | ${output} |`);

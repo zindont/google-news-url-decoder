@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+const crypto = require('crypto');
 const fs = require('fs');
 const { GoogleDecoder } = require('../index.js');
 
@@ -14,6 +15,7 @@ const canaryState = {
     urls: [],
     results: [],
     successCount: 0,
+    candidateCount: 0,
     summaryWritten: false,
 };
 
@@ -57,10 +59,20 @@ function extractArticleUrls(feedText) {
 
         seen.add(url);
         urls.push(url);
-        if (urls.length >= SAMPLE_SIZE) break;
     }
 
     return urls;
+}
+
+function selectRandomUrls(urls, sampleSize) {
+    const shuffled = [...urls];
+
+    for (let index = shuffled.length - 1; index > 0; index--) {
+        const swapIndex = crypto.randomInt(index + 1);
+        [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+
+    return shuffled.slice(0, sampleSize);
 }
 
 async function fetchWithTimeout(fetchImpl, url, options = {}) {
@@ -199,6 +211,7 @@ function buildStepSummary({ urls, results, successCount, failure = null }) {
         `Canary status: **${passed ? 'Passed' : 'Failed'}**`,
         `Result: **${successCount}/${urls.length} decoded**`,
         `Minimum required: **${MIN_SUCCESS}/${SAMPLE_SIZE} decoded**`,
+        `Candidate pool: **${canaryState.candidateCount} Google News URLs**`,
         `Feed: ${markdownLink(compactUrl(FEED_URL), FEED_URL)}`,
         '',
     ];
@@ -279,11 +292,15 @@ async function main() {
     }
 
     const feedText = await feedResponse.text();
-    const urls = extractArticleUrls(feedText);
+    const candidateUrls = extractArticleUrls(feedText);
+    canaryState.candidateCount = candidateUrls.length;
 
-    if (urls.length < SAMPLE_SIZE) {
-        throw new Error(`Expected ${SAMPLE_SIZE} Google News article URLs, found ${urls.length}`);
+    if (candidateUrls.length < SAMPLE_SIZE) {
+        throw new Error(`Expected ${SAMPLE_SIZE} Google News article URLs, found ${candidateUrls.length}`);
     }
+
+    const urls = selectRandomUrls(candidateUrls, SAMPLE_SIZE);
+    console.log(`Candidate URL pool: ${candidateUrls.length}; selected ${urls.length} random URLs`);
 
     urls.forEach((url, index) => {
         console.log(`[source ${index}] ${url}`);

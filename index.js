@@ -183,7 +183,6 @@ class GoogleDecoder {
      * @returns {Promise<object[]>}
      */
     async decodeBatch(sourceUrls) {
-        let response;
         try {
             const results = [];
             for (const sourceUrl of sourceUrls) {
@@ -215,73 +214,35 @@ class GoogleDecoder {
                 return results;
             }
 
-            const url = "https://news.google.com/_/DotsSplashUi/data/batchexecute";
-            const payloads = successfulRequests.map(req => ([
-                "Fbv4je",
-                `["garturlreq",[["X","X",["X","X"],null,null,1,1,"US:en",null,1,null,null,null,null,null,0,1],"X","X",1,[1,1,1],1,1,null,0,0,null,0],"${req.base64_str}",${req.timestamp},"${req.signature}"]`,
-            ]));
-
-            const reqData = `f.req=${encodeURIComponent(JSON.stringify([payloads]))}`;
-
-            response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
-                    "Accept": "*/*",
-                    "Origin": "https://news.google.com",
-                    "Referer": "https://news.google.com/",
-                    "Sec-Ch-Ua": '"Google Chrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"',
-                    "Sec-Ch-Ua-Mobile": "?0",
-                    "Sec-Ch-Ua-Platform": '"Windows"',
-                    "Sec-Fetch-Dest": "empty",
-                    "Sec-Fetch-Mode": "cors",
-                    "Sec-Fetch-Site": "same-origin",
-                },
-                body: reqData
-            });
-
-            if (!response.ok) {
-                // Cancel the response body to prevent stalled HTTP warning in Cloudflare Workers
-                await response.body?.cancel();
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const text = await response.text();
-            const splitParts = text.split("\n\n");
-            if (splitParts.length < 2) {
-                throw new Error("Unexpected response format from batchexecute");
-            }
-
-            const jsonStr = splitParts[1];
-            const parsedData = JSON.parse(jsonStr);
-
-            // Google News API response contains multiple chunks. We look for 'wrb.fr' or 'w779db' 
-            // combined with the action code 'Fbv4je'.
-            const batchResponses = parsedData.filter(d => (d[0] === "wrb.fr" || d[0] === "w779db") && d[1] === "Fbv4je");
-
-
-
-
-            let successIdx = 0;
-            return results.map(res => {
+            return await Promise.all(results.map(async res => {
                 if (!res.status) return res;
 
                 try {
-                    const row = batchResponses[successIdx++];
-                    const innerDataStr = row[2];
-                    const innerData = JSON.parse(innerDataStr);
-                    const decodedUrl = innerData[1];
-                    return { status: true, source_url: res.source_url, decoded_url: decodedUrl };
+                    // Multi-payload batchexecute responses are not guaranteed to preserve request order.
+                    const decodedResponse = await this.decodeUrl(res.signature, res.timestamp, res.base64_str);
+                    if (!decodedResponse.status) {
+                        return {
+                            status: false,
+                            source_url: res.source_url,
+                            message: decodedResponse.message,
+                        };
+                    }
+
+                    return {
+                        status: true,
+                        source_url: res.source_url,
+                        decoded_url: decodedResponse.decoded_url,
+                    };
                 } catch (e) {
-                    return { status: false, source_url: res.source_url, message: `Parsing error: ${e.message}` };
+                    return {
+                        status: false,
+                        source_url: res.source_url,
+                        message: `Error decoding batch item: ${e.message}`,
+                    };
                 }
-            });
+            }));
 
         } catch (e) {
-            if (response && !response.bodyUsed) {
-                try { await response.body?.cancel(); } catch (err) { }
-            }
             return [{
                 status: false,
                 message: `Error in decodeBatch: ${e.message}`,

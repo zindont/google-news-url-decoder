@@ -193,8 +193,11 @@ describe('GoogleDecoder', () => {
             globalThis.fetch = async (url, options) => {
                 callCount++;
                 if (options?.method === 'POST') {
-                    // batchexecute response
-                    const mockBatch = `)]}'\n\n[[ "wrb.fr", "Fbv4je", "[\\\"garturlres\\\",\\\"https://example.com/res1\\\"]" ], [ "wrb.fr", "Fbv4je", "[\\\"garturlres\\\",\\\"https://example.com/res2\\\"]" ]]`;
+                    const body = decodeURIComponent(options.body);
+                    const decodedUrl = body.includes('CBMi1')
+                        ? 'https://example.com/res1'
+                        : 'https://example.com/res2';
+                    const mockBatch = `)]}'\n\n[[ "wrb.fr", "Fbv4je", "[\\\"garturlres\\\",\\\"${decodedUrl}\\\"]" ]]`;
                     return { ok: true, text: async () => mockBatch };
                 } else {
                     // getDecodingParams response
@@ -209,8 +212,11 @@ describe('GoogleDecoder', () => {
 
             const results = await decoder.decodeBatch(urls);
             assert.strictEqual(results.length, 2);
+            assert.strictEqual(results[0].source_url, urls[0]);
             assert.strictEqual(results[0].decoded_url, 'https://example.com/res1');
+            assert.strictEqual(results[1].source_url, urls[1]);
             assert.strictEqual(results[1].decoded_url, 'https://example.com/res2');
+            assert.strictEqual(callCount, 4);
         });
 
         it('should still support the legacy format (w779db)', async () => {

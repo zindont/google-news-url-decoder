@@ -29,7 +29,7 @@ decoder.decode(googleNewsUrl)
     })
     .catch(err => console.error(err));
 
-// Batch decoding (optimizes batchexecute calls)
+// Batch decoding
 const urls = [ 'url1', 'url2', '...'];
 decoder.decodeBatch(urls)
     .then(results => {
@@ -60,7 +60,7 @@ node node_modules/google-news-url-decoder/index.js "URL1" "URL2" "URL3"
 The decoder works by:
 1. Extracting the base64 encoded string from the Google News URL path.
 2. Fetching the necessary decoding parameters (signature and timestamp) from Google News article pages (serialized with random delays to avoid rate limits).
-3. Making a request to Google's internal `batchexecute` endpoint to get the final decoded URL. The batch method sends multiple requests in a single HTTP call to minimize network overhead and rate-limiting risks.
+3. Making a request to Google's internal `batchexecute` endpoint to get the final decoded URL. The batch method preserves source/result alignment by decoding each URL independently after collecting the required parameters.
 
 ## Features
 - No browser automation required (no Puppeteer/Playwright needed).
